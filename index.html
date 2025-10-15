@@ -2,110 +2,124 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>分数計算機</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>分数けいさん</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=M+PLUS+Rounded+1c:wght@700;800&display=swap" rel="stylesheet">
   <style>
+    :root{
+      /* 画面に応じて伸縮するサイズ変数 */
+      --frac-font-big:  clamp(32px, 8vw, 56px);
+      --frac-font-wh:   clamp(24px, 6vw, 40px);
+      --frac-width:     clamp(140px, 34vw, 220px);
+      --op-btn-size:    clamp(64px, 12vw, 96px);
+      --op-glyph-size:  clamp(40px, 9vw, 56px);
+      --ring-size:      clamp(150px, 34vw, 200px);
+      --slot-size:      clamp(52px, 12vw, 72px);
+    }
     body{font-family:'M PLUS Rounded 1c','Inter',sans-serif;-webkit-tap-highlight-color:transparent}
-
+    main{padding-left:calc(1.5rem + env(safe-area-inset-left));padding-right:calc(1.5rem + env(safe-area-inset-right))}
     /* 分数の横棒 */
     .frac-bar{ height:6px; border-radius:9999px; background:#1f2937 }
+    /* 入力サイズを可変に */
+    .frac-wh{ font-size:var(--frac-font-wh) }
+    .frac-in{ font-size:var(--frac-font-big) }
+    .frac-box{ width:var(--frac-width) }
 
-    /* 演算子ボタン（通常は記号1つだけ） */
+    /* 演算子ボタン（通常表示） */
     .op-button{
-      width:96px;height:96px;display:flex;align-items:center;justify-content:center;
+      width:var(--op-btn-size);height:var(--op-btn-size);
+      display:flex;align-items:center;justify-content:center;
       border-radius:16px;background:#fff;border:3px solid #3b82f6;
-      color:#1e40af;font-size:56px;font-weight:800;line-height:1;padding:6px;
+      color:#1e40af;font-size:var(--op-glyph-size);font-weight:800;line-height:1;padding:6px;
       box-shadow:0 6px 18px rgba(0,0,0,.12);transition:transform .12s;
+      touch-action:manipulation; -webkit-touch-callout:none; user-select:none;
     }
     .op-button:active{ transform:scale(.98) }
 
-    /* 円形フリック・ピッカー */
+    /* 円形フリック・ピッカー（画面端でもOK：fixed） */
     .op-ring{
-      position:absolute; left:50%; top:50%;
-      transform:translate(-50%,-50%) scale(.96);
-      width:180px; height:180px; border-radius:9999px; background:#fff;
-      border:3px solid #3b82f6; box-shadow:0 16px 40px rgba(0,0,0,.18);
-      display:none; opacity:0; transition:transform .12s, opacity .12s; z-index:10;
+      position:fixed; left:0; top:0; width:var(--ring-size); height:var(--ring-size);
+      border-radius:9999px; background:#fff; border:3px solid #3b82f6;
+      box-shadow:0 16px 40px rgba(0,0,0,.18); display:none; opacity:0;
+      transform:scale(.96); transition:transform .12s, opacity .12s; z-index:1000;
+      touch-action:none; /* ドラッグでページがスクロールしない */
     }
-    .op-ring.show{ display:block; opacity:1; transform:translate(-50%,-50%) scale(1) }
+    .op-ring.show{ display:block; opacity:1; transform:scale(1) }
 
     .op-slot{
-      position:absolute; width:64px; height:64px; border-radius:14px;
+      position:absolute; width:var(--slot-size); height:var(--slot-size); border-radius:14px;
       display:flex; align-items:center; justify-content:center;
-      background:#f8fbff; color:#1e40af; font-size:42px; font-weight:800; line-height:1;
-      box-shadow:0 6px 16px rgba(0,0,0,.12); user-select:none; border:none; cursor:pointer;
-      padding:6px;
+      background:#f8fbff; color:#1e40af; font-size:clamp(36px, 7vw, 42px); font-weight:800; line-height:1;
+      box-shadow:0 6px 16px rgba(0,0,0,.12); user-select:none; border:none; cursor:pointer; padding:6px;
     }
     .op-slot.active{ background:rgba(245,158,11,.12); color:#f59e0b; transform:scale(1.06) }
-    .slot-top   { left:50%; top:-6px;   transform:translate(-50%,0) }
-    .slot-right { right:-6px; top:50%;  transform:translate(0,-50%) }
-    .slot-bottom{ left:50%; bottom:-6px;transform:translate(-50%,0) }
-    .slot-left  { left:-6px; top:50%;   transform:translate(0,-50%) }
+
+    /* 位置（リングの外周4方向） */
+    .slot-top   { left:50%; top:2px;    transform:translate(-50%,0) }
+    .slot-right { right:2px; top:50%;   transform:translate(0,-50%) }
+    .slot-bottom{ left:50%; bottom:2px; transform:translate(-50%,0) }
+    .slot-left  { left:2px; top:50%;    transform:translate(0,-50%) }
+
+    /* 低モーション環境 */
+    @media (prefers-reduced-motion: reduce){
+      .op-button, .op-ring, .op-slot{ transition:none !important }
+    }
   </style>
 </head>
 <body class="bg-blue-50 flex items-center justify-center min-h-screen">
 
-  <main class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg w-full max-w-4xl mx-4">
-    <h1 class="text-2xl sm:text-3xl font-bold text-center text-gray-700 mb-6">分数計算機</h1>
+  <main class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg w-full max-w-5xl mx-4">
+    <h1 class="text-2xl sm:text-3xl font-bold text-center text-gray-700 mb-6">分数けいさん</h1>
 
-    <!-- 🔸 op 🔺 ＝ ⭕️ -->
-    <div class="w-full overflow-x-auto">
-      <div class="flex items-center justify-center gap-4 sm:gap-6 min-w-[840px]">
+    <!-- 一行式（画面に合わせて縮む。横スクロール不要） -->
+    <div class="w-full">
+      <div class="flex items-center justify-center gap-3 sm:gap-5 flex-wrap">
 
-        <!-- 左：帯分数（全角→半角対応のため type=text） -->
-        <div class="flex items-center gap-2 w-[200px]">
+        <!-- 左：帯分数（全角OK） -->
+        <div class="flex items-center gap-2" style="width:var(--frac-width)">
           <input type="text" id="whole1" inputmode="numeric" autocomplete="off"
-                 class="text-3xl sm:text-4xl font-bold text-center w-14 sm:w-16 p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 class="frac-wh font-bold text-center w-12 sm:w-14 p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                  aria-label="1つ目の帯分数の整数部分" placeholder=" ">
-          <div class="flex flex-col items-center flex-1">
+          <div class="flex flex-col items-center flex-1 frac-box">
             <input type="text" id="num1" inputmode="numeric" autocomplete="off"
-                   class="text-4xl sm:text-5xl font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   class="frac-in font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                    aria-label="1つ目の分子" placeholder=" ">
             <div class="frac-bar my-2 w-full"></div>
             <input type="text" id="den1" inputmode="numeric" autocomplete="off"
-                   class="text-4xl sm:text-5xl font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   class="frac-in font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                    aria-label="1つ目の分母" placeholder=" ">
           </div>
         </div>
 
-        <!-- 中央：演算子（短タップ＝順送り／長押し＝フリック選択） -->
+        <!-- 演算子（短タップ＝順送り／長押し＝フリック選択） -->
         <div id="opArea" class="relative select-none">
           <button id="opBtn" class="op-button" type="button" aria-label="けいさんのしるし">＋</button>
-          <div id="opRadial" class="op-ring" aria-hidden="true">
-            <button class="op-slot slot-top"    data-op="+">＋</button>
-            <button class="op-slot slot-right"  data-op="-">−</button>
-            <button class="op-slot slot-bottom" data-op="*">×</button>
-            <button class="op-slot slot-left"   data-op="/">÷</button>
-          </div>
         </div>
 
         <!-- 右：帯分数 -->
-        <div class="flex items-center gap-2 w-[200px]">
+        <div class="flex items-center gap-2" style="width:var(--frac-width)">
           <input type="text" id="whole2" inputmode="numeric" autocomplete="off"
-                 class="text-3xl sm:text-4xl font-bold text-center w-14 sm:w-16 p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 class="frac-wh font-bold text-center w-12 sm:w-14 p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                  aria-label="2つ目の帯分数の整数部分" placeholder=" ">
-          <div class="flex flex-col items-center flex-1">
+          <div class="flex flex-col items-center flex-1 frac-box">
             <input type="text" id="num2" inputmode="numeric" autocomplete="off"
-                   class="text-4xl sm:text-5xl font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   class="frac-in font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                    aria-label="2つ目の分子" placeholder=" ">
             <div class="frac-bar my-2 w-full"></div>
             <input type="text" id="den2" inputmode="numeric" autocomplete="off"
-                   class="text-4xl sm:text-5xl font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   class="frac-in font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                    aria-label="2つ目の分母" placeholder=" ">
           </div>
         </div>
 
-        <!-- ＝ -->
+        <!-- ＝ と 結果 -->
         <div class="text-5xl sm:text-6xl font-extrabold text-gray-700 select-none">＝</div>
-
-        <!-- 結果 -->
-        <div class="flex flex-col items-center text-blue-600 w-[220px]">
+        <div class="flex flex-col items-center text-blue-600" style="width:clamp(160px, 30vw, 240px)">
           <div id="result-num" class="text-5xl sm:text-6xl font-extrabold min-h-[60px] sm:min-h-[72px]"></div>
-          <div id="result-bar" class="h-1.5 w-32 sm:w-40 bg-blue-600 my-2 rounded-full hidden"></div>
+          <div id="result-bar" class="h-1.5 w-[70%] bg-blue-600 my-2 rounded-full hidden"></div>
           <div id="result-den" class="text-5xl sm:text-6xl font-extrabold min-h-[60px] sm:min-h-[72px]"></div>
         </div>
       </div>
@@ -120,8 +134,16 @@
     <p id="error-message" class="text-center text-red-500 font-bold mt-3 min-h-[24px]"></p>
   </main>
 
+  <!-- 円形フリック・ピッカー（fixed：1個を共用） -->
+  <div id="opRadial" class="op-ring" aria-hidden="true">
+    <button class="op-slot slot-top"    data-op="+">＋</button>
+    <button class="op-slot slot-right"  data-op="-">−</button>
+    <button class="op-slot slot-bottom" data-op="*">×</button>
+    <button class="op-slot slot-left"   data-op="/">÷</button>
+  </div>
+
   <script>
-    // ====== 入力要素 ======
+    // ====== 要素取得 ======
     const whole1 = document.getElementById('whole1');
     const num1   = document.getElementById('num1');
     const den1   = document.getElementById('den1');
@@ -135,6 +157,13 @@
     const resultDen    = document.getElementById('result-den');
     const resultBar    = document.getElementById('result-bar');
     const errorMessage = document.getElementById('error-message');
+
+    const opArea   = document.getElementById('opArea');
+    const opBtn    = document.getElementById('opBtn');
+    const opRadial = document.getElementById('opRadial');
+    const opSlots  = Array.from(opRadial.querySelectorAll('.op-slot'));
+    const order    = ['+','-','*','/'];
+    const glyph    = { '+':'＋', '-':'−', '*':'×', '/':'÷' };
 
     // ====== 全角→半角 正規化 ======
     function normalizeIntegerInput(str, allowSign=true){
@@ -153,8 +182,8 @@
     }
     function attachNormalizer(el, allowSign=true){
       let composing=false;
-      el.addEventListener('compositionstart', ()=> composing=true);
-      el.addEventListener('compositionend', ()=>{ composing=false; el.value = normalizeIntegerInput(el.value, allowSign); });
+      el.addEventListener('compositionstart', ()=> composing=true, {passive:true});
+      el.addEventListener('compositionend', ()=>{ composing=false; el.value = normalizeIntegerInput(el.value, allowSign); }, {passive:true});
       el.addEventListener('input', ()=>{
         if (composing) return;
         const before = el.value;
@@ -164,26 +193,20 @@
           el.value = after;
           if (caretEnd) el.setSelectionRange(after.length, after.length);
         }
-      });
+      }, {passive:true});
     }
     [whole1,num1,den1,whole2,num2,den2].forEach(el => attachNormalizer(el, true));
 
-    // ====== 演算子（順送り＋長押しフリック） ======
-    const opArea   = document.getElementById('opArea');
-    const opBtn    = document.getElementById('opBtn');
-    const opRadial = document.getElementById('opRadial');
-    const opSlots  = Array.from(opRadial.querySelectorAll('.op-slot'));
-    const order    = ['+','-','*','/'];
-    const glyph    = { '+':'＋', '-':'−', '*':'×', '/':'÷' };
+    // ====== 演算子（順送り＋長押しフリック、画面端補正） ======
     let selectedOp = '+';
-
     function chooseOp(op){
       selectedOp = op;
       opBtn.textContent = glyph[op];
+      if (navigator.vibrate) try{ navigator.vibrate(5); }catch(e){}
     }
     chooseOp('+');
 
-    // キーボード：左右上下で直接、Enter/Spaceで順送り
+    // キーボード（PC）
     opBtn.addEventListener('keydown', e=>{
       const map = {ArrowUp:'+', ArrowRight:'-', ArrowDown:'*', ArrowLeft:'/'};
       if (map[e.key]){ chooseOp(map[e.key]); e.preventDefault(); return; }
@@ -193,17 +216,32 @@
       }
     });
 
-    // 長押し/ドラッグで円形、短タップで順送り
+    // リングをボタン位置に開く（画面端でクランプ）
+    function openRadialAtButton(){
+      const ringSize = Math.max(parseFloat(getComputedStyle(opRadial).width), 150);
+      const br = opBtn.getBoundingClientRect();
+      let left = br.left + br.width/2 - ringSize/2;
+      let top  = br.top  + br.height/2 - ringSize/2;
+      const margin = 8;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      left = Math.max(margin, Math.min(vw - ringSize - margin, left));
+      top  = Math.max(margin, Math.min(vh - ringSize - margin, top));
+      opRadial.style.left = left + 'px';
+      opRadial.style.top  = top  + 'px';
+      opRadial.classList.add('show');
+    }
+
+    // 長押し/ドラッグでリング、短タップで順送り
     let pressTimer=null, isOpen=false, activeIdx=-1, baseDown=null;
 
     opBtn.addEventListener('pointerdown', (e)=>{
       opBtn.setPointerCapture(e.pointerId);
       baseDown = {x:e.clientX, y:e.clientY};
-      const open = ()=>{ isOpen=true; opRadial.classList.add('show'); highlightByEvent(e); };
+      const open = ()=>{ isOpen=true; openRadialAtButton(); highlightByEvent(e); };
       pressTimer = setTimeout(open, 180); // 長押し閾値
 
       const onMove = (ev)=>{
-        if(!isOpen && moved(ev)) { clearTimeout(pressTimer); isOpen=true; opRadial.classList.add('show'); }
+        if(!isOpen && moved(ev)) { clearTimeout(pressTimer); isOpen=true; openRadialAtButton(); }
         if(isOpen) highlightByEvent(ev);
       };
       const onUp = ()=>{
@@ -221,15 +259,14 @@
         opBtn.removeEventListener('pointerup', onUp);
         opBtn.removeEventListener('pointercancel', onUp);
       };
-      opBtn.addEventListener('pointermove', onMove);
-      opBtn.addEventListener('pointerup', onUp);
-      opBtn.addEventListener('pointercancel', onUp);
+      opBtn.addEventListener('pointermove', onMove, {passive:true});
+      opBtn.addEventListener('pointerup', onUp, {passive:true});
+      opBtn.addEventListener('pointercancel', onUp, {passive:true});
     });
 
-    document.addEventListener('pointermove', (e)=>{ if(isOpen) highlightByEvent(e); });
-    document.addEventListener('pointerup',   ()=>{ if(isOpen){ commitActive(); closeRadial(); } });
+    document.addEventListener('pointermove', (e)=>{ if(isOpen) highlightByEvent(e); }, {passive:true});
+    document.addEventListener('pointerup',   ()=>{ if(isOpen){ commitActive(); closeRadial(); } }, {passive:true});
 
-    // スロット直接クリック
     opSlots.forEach(el=>{
       el.addEventListener('click', (e)=>{ e.stopPropagation(); chooseOp(el.dataset.op); closeRadial(); });
     });
@@ -250,9 +287,9 @@
     }
     function commitActive(){ if (activeIdx>=0) chooseOp(order[activeIdx]); }
 
-    // 外側クリックで閉じる
+    // 外側タップで閉じる（モバイルでの誤動作防止）
     document.addEventListener('mousedown', (e)=>{
-      if (isOpen && !opArea.contains(e.target)) closeRadial();
+      if (isOpen && !opRadial.contains(e.target) && e.target!==opBtn) closeRadial();
     });
 
     // ====== 計算ユーティリティ ======
