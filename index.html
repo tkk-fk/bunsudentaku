@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>分数計算機</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=M+PLUS+Rounded+1c:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:'M PLUS Rounded 1c','Inter',sans-serif;-webkit-tap-highlight-color:transparent}
+
+    /* 分数の横棒 */
+    .frac-bar{ height:6px; border-radius:9999px; background:#1f2937 }
+
+    /* 演算子ボタン（通常は記号1つだけ） */
+    .op-button{
+      width:96px;height:96px;display:flex;align-items:center;justify-content:center;
+      border-radius:16px;background:#fff;border:3px solid #3b82f6;
+      color:#1e40af;font-size:56px;font-weight:800;line-height:1;padding:6px;
+      box-shadow:0 6px 18px rgba(0,0,0,.12);transition:transform .12s;
+    }
+    .op-button:active{ transform:scale(.98) }
+
+    /* 円形フリック・ピッカー */
+    .op-ring{
+      position:absolute; left:50%; top:50%;
+      transform:translate(-50%,-50%) scale(.96);
+      width:180px; height:180px; border-radius:9999px; background:#fff;
+      border:3px solid #3b82f6; box-shadow:0 16px 40px rgba(0,0,0,.18);
+      display:none; opacity:0; transition:transform .12s, opacity .12s; z-index:10;
+    }
+    .op-ring.show{ display:block; opacity:1; transform:translate(-50%,-50%) scale(1) }
+
+    .op-slot{
+      position:absolute; width:64px; height:64px; border-radius:14px;
+      display:flex; align-items:center; justify-content:center;
+      background:#f8fbff; color:#1e40af; font-size:42px; font-weight:800; line-height:1;
+      box-shadow:0 6px 16px rgba(0,0,0,.12); user-select:none; border:none; cursor:pointer;
+      padding:6px;
+    }
+    .op-slot.active{ background:rgba(245,158,11,.12); color:#f59e0b; transform:scale(1.06) }
+    .slot-top   { left:50%; top:-6px;   transform:translate(-50%,0) }
+    .slot-right { right:-6px; top:50%;  transform:translate(0,-50%) }
+    .slot-bottom{ left:50%; bottom:-6px;transform:translate(-50%,0) }
+    .slot-left  { left:-6px; top:50%;   transform:translate(0,-50%) }
+  </style>
+</head>
+<body class="bg-blue-50 flex items-center justify-center min-h-screen">
+
+  <main class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg w-full max-w-4xl mx-4">
+    <h1 class="text-2xl sm:text-3xl font-bold text-center text-gray-700 mb-6">分数計算機</h1>
+
+    <!-- 🔸 op 🔺 ＝ ⭕️ -->
+    <div class="w-full overflow-x-auto">
+      <div class="flex items-center justify-center gap-4 sm:gap-6 min-w-[840px]">
+
+        <!-- 左：帯分数（全角→半角対応のため type=text） -->
+        <div class="flex items-center gap-2 w-[200px]">
+          <input type="text" id="whole1" inputmode="numeric" autocomplete="off"
+                 class="text-3xl sm:text-4xl font-bold text-center w-14 sm:w-16 p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 aria-label="1つ目の帯分数の整数部分" placeholder=" ">
+          <div class="flex flex-col items-center flex-1">
+            <input type="text" id="num1" inputmode="numeric" autocomplete="off"
+                   class="text-4xl sm:text-5xl font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   aria-label="1つ目の分子" placeholder=" ">
+            <div class="frac-bar my-2 w-full"></div>
+            <input type="text" id="den1" inputmode="numeric" autocomplete="off"
+                   class="text-4xl sm:text-5xl font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   aria-label="1つ目の分母" placeholder=" ">
+          </div>
+        </div>
+
+        <!-- 中央：演算子（短タップ＝順送り／長押し＝フリック選択） -->
+        <div id="opArea" class="relative select-none">
+          <button id="opBtn" class="op-button" type="button" aria-label="けいさんのしるし">＋</button>
+          <div id="opRadial" class="op-ring" aria-hidden="true">
+            <button class="op-slot slot-top"    data-op="+">＋</button>
+            <button class="op-slot slot-right"  data-op="-">−</button>
+            <button class="op-slot slot-bottom" data-op="*">×</button>
+            <button class="op-slot slot-left"   data-op="/">÷</button>
+          </div>
+        </div>
+
+        <!-- 右：帯分数 -->
+        <div class="flex items-center gap-2 w-[200px]">
+          <input type="text" id="whole2" inputmode="numeric" autocomplete="off"
+                 class="text-3xl sm:text-4xl font-bold text-center w-14 sm:w-16 p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 aria-label="2つ目の帯分数の整数部分" placeholder=" ">
+          <div class="flex flex-col items-center flex-1">
+            <input type="text" id="num2" inputmode="numeric" autocomplete="off"
+                   class="text-4xl sm:text-5xl font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   aria-label="2つ目の分子" placeholder=" ">
+            <div class="frac-bar my-2 w-full"></div>
+            <input type="text" id="den2" inputmode="numeric" autocomplete="off"
+                   class="text-4xl sm:text-5xl font-bold text-center w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   aria-label="2つ目の分母" placeholder=" ">
+          </div>
+        </div>
+
+        <!-- ＝ -->
+        <div class="text-5xl sm:text-6xl font-extrabold text-gray-700 select-none">＝</div>
+
+        <!-- 結果 -->
+        <div class="flex flex-col items-center text-blue-600 w-[220px]">
+          <div id="result-num" class="text-5xl sm:text-6xl font-extrabold min-h-[60px] sm:min-h-[72px]"></div>
+          <div id="result-bar" class="h-1.5 w-32 sm:w-40 bg-blue-600 my-2 rounded-full hidden"></div>
+          <div id="result-den" class="text-5xl sm:text-6xl font-extrabold min-h-[60px] sm:min-h-[72px]"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 実行ボタン -->
+    <div class="flex items-center justify-center gap-4 mt-6">
+      <button id="calculate" class="text-3xl sm:text-4xl font-extrabold px-8 py-3 rounded-2xl bg-green-500 text-white shadow-lg hover:bg-green-600 transition-transform hover:scale-105">＝</button>
+      <button id="clear" class="text-2xl sm:text-3xl font-extrabold px-6 py-3 rounded-2xl bg-red-500 text-white shadow-lg hover:bg-red-600 transition-transform hover:scale-105">C</button>
+    </div>
+
+    <p id="error-message" class="text-center text-red-500 font-bold mt-3 min-h-[24px]"></p>
+  </main>
+
+  <script>
+    // ====== 入力要素 ======
+    const whole1 = document.getElementById('whole1');
+    const num1   = document.getElementById('num1');
+    const den1   = document.getElementById('den1');
+    const whole2 = document.getElementById('whole2');
+    const num2   = document.getElementById('num2');
+    const den2   = document.getElementById('den2');
+
+    const calculateBtn = document.getElementById('calculate');
+    const clearBtn     = document.getElementById('clear');
+    const resultNum    = document.getElementById('result-num');
+    const resultDen    = document.getElementById('result-den');
+    const resultBar    = document.getElementById('result-bar');
+    const errorMessage = document.getElementById('error-message');
+
+    // ====== 全角→半角 正規化 ======
+    function normalizeIntegerInput(str, allowSign=true){
+      if (!str) return '';
+      let s = str.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+      s = s.replace(/[−ー－―–—﹣]/g, '-');
+      s = s.replace(/[\s\u3000]/g, '');
+      if (allowSign){
+        const hasMinus = s.includes('-');
+        s = s.replace(/-/g,'');
+        s = (hasMinus ? '-' : '') + s.replace(/[^0-9]/g,'');
+      }else{
+        s = s.replace(/[^0-9]/g,'');
+      }
+      return s;
+    }
+    function attachNormalizer(el, allowSign=true){
+      let composing=false;
+      el.addEventListener('compositionstart', ()=> composing=true);
+      el.addEventListener('compositionend', ()=>{ composing=false; el.value = normalizeIntegerInput(el.value, allowSign); });
+      el.addEventListener('input', ()=>{
+        if (composing) return;
+        const before = el.value;
+        const after = normalizeIntegerInput(before, allowSign);
+        if (before !== after){
+          const caretEnd = document.activeElement === el && el.selectionStart === before.length;
+          el.value = after;
+          if (caretEnd) el.setSelectionRange(after.length, after.length);
+        }
+      });
+    }
+    [whole1,num1,den1,whole2,num2,den2].forEach(el => attachNormalizer(el, true));
+
+    // ====== 演算子（順送り＋長押しフリック） ======
+    const opArea   = document.getElementById('opArea');
+    const opBtn    = document.getElementById('opBtn');
+    const opRadial = document.getElementById('opRadial');
+    const opSlots  = Array.from(opRadial.querySelectorAll('.op-slot'));
+    const order    = ['+','-','*','/'];
+    const glyph    = { '+':'＋', '-':'−', '*':'×', '/':'÷' };
+    let selectedOp = '+';
+
+    function chooseOp(op){
+      selectedOp = op;
+      opBtn.textContent = glyph[op];
+    }
+    chooseOp('+');
+
+    // キーボード：左右上下で直接、Enter/Spaceで順送り
+    opBtn.addEventListener('keydown', e=>{
+      const map = {ArrowUp:'+', ArrowRight:'-', ArrowDown:'*', ArrowLeft:'/'};
+      if (map[e.key]){ chooseOp(map[e.key]); e.preventDefault(); return; }
+      if (e.key==='Enter' || e.key===' '){
+        const next = order[(order.indexOf(selectedOp)+1)%order.length];
+        chooseOp(next); e.preventDefault();
+      }
+    });
+
+    // 長押し/ドラッグで円形、短タップで順送り
+    let pressTimer=null, isOpen=false, activeIdx=-1, baseDown=null;
+
+    opBtn.addEventListener('pointerdown', (e)=>{
+      opBtn.setPointerCapture(e.pointerId);
+      baseDown = {x:e.clientX, y:e.clientY};
+      const open = ()=>{ isOpen=true; opRadial.classList.add('show'); highlightByEvent(e); };
+      pressTimer = setTimeout(open, 180); // 長押し閾値
+
+      const onMove = (ev)=>{
+        if(!isOpen && moved(ev)) { clearTimeout(pressTimer); isOpen=true; opRadial.classList.add('show'); }
+        if(isOpen) highlightByEvent(ev);
+      };
+      const onUp = ()=>{
+        clearTimeout(pressTimer);
+        if(isOpen){ commitActive(); closeRadial(); }
+        else{
+          const next = order[(order.indexOf(selectedOp)+1)%order.length];
+          chooseOp(next);
+        }
+        cleanup();
+      };
+      const cleanup = ()=>{
+        opBtn.releasePointerCapture(e.pointerId);
+        opBtn.removeEventListener('pointermove', onMove);
+        opBtn.removeEventListener('pointerup', onUp);
+        opBtn.removeEventListener('pointercancel', onUp);
+      };
+      opBtn.addEventListener('pointermove', onMove);
+      opBtn.addEventListener('pointerup', onUp);
+      opBtn.addEventListener('pointercancel', onUp);
+    });
+
+    document.addEventListener('pointermove', (e)=>{ if(isOpen) highlightByEvent(e); });
+    document.addEventListener('pointerup',   ()=>{ if(isOpen){ commitActive(); closeRadial(); } });
+
+    // スロット直接クリック
+    opSlots.forEach(el=>{
+      el.addEventListener('click', (e)=>{ e.stopPropagation(); chooseOp(el.dataset.op); closeRadial(); });
+    });
+
+    function moved(ev){ return Math.abs(ev.clientX-baseDown.x)>6 || Math.abs(ev.clientY-baseDown.y)>6; }
+    function closeRadial(){ isOpen=false; activeIdx=-1; opRadial.classList.remove('show'); opSlots.forEach(s=>s.classList.remove('active')); }
+    function highlightByEvent(e){
+      const r = opRadial.getBoundingClientRect();
+      const cx = r.left + r.width/2, cy = r.top + r.height/2;
+      const dx = e.clientX - cx,     dy = e.clientY - cy;
+      const ang = Math.atan2(dy, dx) * 180/Math.PI; // 右0°, 下90°, 左180°, 上-90°
+      let op; if (ang>=-45 && ang<45) op='-'; else if (ang>=45 && ang<135) op='*'; else if (ang>=-135 && ang<-45) op='+'; else op='/';
+      const idx = order.indexOf(op);
+      if (idx !== activeIdx){
+        activeIdx = idx;
+        opSlots.forEach(s=> s.classList.toggle('active', s.dataset.op === op));
+      }
+    }
+    function commitActive(){ if (activeIdx>=0) chooseOp(order[activeIdx]); }
+
+    // 外側クリックで閉じる
+    document.addEventListener('mousedown', (e)=>{
+      if (isOpen && !opArea.contains(e.target)) closeRadial();
+    });
+
+    // ====== 計算ユーティリティ ======
+    function gcd(a,b){ return b===0 ? a : gcd(b, a%b); }
+    function normZero(x){ return Object.is(x,-0)?0:x; }
+    function toImproper(whole, num, den){
+      whole = Number.isFinite(whole) ? whole : 0;
+      num   = Number.isFinite(num)   ? num   : 0;
+      if (den < 0){ den = -den; num = -num; }
+      const absWhole = Math.abs(whole);
+      let n = absWhole * den + Math.abs(num);
+      let sign = 1;
+      if (whole !== 0) sign = whole < 0 ? -1 : 1;
+      else if (num !== 0) sign = num < 0 ? -1 : 1;
+      n *= sign;
+      return { n, d: den };
+    }
+
+    // ====== 計算 ======
+    calculateBtn.addEventListener('click', calculate);
+    clearBtn.addEventListener('click', clearAll);
+    document.querySelectorAll('input').forEach(input=>{
+      input.addEventListener('keydown', e=>{ if(e.key==='Enter') calculate(); });
+    });
+
+    function clearAll(){
+      [whole1,num1,den1,whole2,num2,den2].forEach(el=>el.value='');
+      resultNum.textContent=''; resultDen.textContent='';
+      resultBar.classList.add('hidden'); errorMessage.textContent='';
+      chooseOp('+');
+    }
+
+    function calculate(){
+      resultNum.textContent=''; resultDen.textContent='';
+      resultBar.classList.add('hidden'); errorMessage.textContent='';
+
+      const w1 = parseInt(normalizeIntegerInput(whole1.value,true));
+      const n1 = parseInt(normalizeIntegerInput(num1.value,true));
+      const d1 = parseInt(normalizeIntegerInput(den1.value,true));
+      const w2 = parseInt(normalizeIntegerInput(whole2.value,true));
+      const n2 = parseInt(normalizeIntegerInput(num2.value,true));
+      const d2 = parseInt(normalizeIntegerInput(den2.value,true));
+
+      if (isNaN(d1) || isNaN(d2)) { errorMessage.textContent='分母に数字をいれてね'; return; }
+      if (d1===0 || d2===0) { errorMessage.textContent='分母に0は使えないよ'; return; }
+
+      const f1 = toImproper(w1, n1, d1);
+      const f2 = toImproper(w2, n2, d2);
+
+      let resN, resD;
+      switch(selectedOp){
+        case '+': resN = f1.n * f2.d + f2.n * f1.d; resD = f1.d * f2.d; break;
+        case '-': resN = f1.n * f2.d - f2.n * f1.d; resD = f1.d * f2.d; break;
+        case '*': resN = f1.n * f2.n;               resD = f1.d * f2.d; break;
+        case '/':
+          if (f2.n === 0){ errorMessage.textContent='0でわることはできないよ'; return; }
+          resN = f1.n * f2.d; resD = f1.d * f2.n; break;
+      }
+
+      if (resD < 0){ resN = -resN; resD = -resD; }
+      const g = gcd(Math.abs(resN), Math.abs(resD)) || 1;
+      const simplifiedN = normZero(resN / g);
+      const simplifiedD = normZero(resD / g);
+
+      resultNum.textContent = simplifiedN;
+      if (simplifiedD === 1){ resultDen.textContent=''; resultBar.classList.add('hidden'); }
+      else { resultDen.textContent = simplifiedD; resultBar.classList.remove('hidden'); }
+    }
+  </script>
+</body>
+</html>
